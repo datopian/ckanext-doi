@@ -95,13 +95,15 @@ def build_metadata_dict(pkg_dict):
     # use the author and maintainer; no splitting or parsing for either
     # no try/except for this because it's just a simple .get() and if that doesn't work then we
     # want to know
-    author = pkg_dict.get('author')
-    maintainer = pkg_dict.get('maintainer')
-    if author is not None:
+    author = pkg_dict.get('author', None)
+    maintainer = pkg_dict.get('maintainer', None)
+
+    if author:
         optional['contributors'].append(
             {'contributor_type': 'Researcher', 'full_name': author}
         )
-    if maintainer is not None:
+        
+    if maintainer:
         optional['contributors'].append(
             {'contributor_type': 'DataManager', 'full_name': maintainer}
         )
