@@ -1,0 +1,8 @@
+{% ckan_extends %}
+
+{% block package_additional_info %}
+    {% if pkg.doi %}
+        {% snippet "doi/snippets/package_citation.html", pkg_dict=pkg %}
+    {% endif %}
+    {{ super() }}
+{% endblock %}
