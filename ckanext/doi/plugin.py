@@ -57,10 +57,10 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         Check status of the dataset to determine if we should publish DOI to datacite
         network.
         """
-        # Is this active and public? If so we need to make sure we have an active DOI
+        # Is this active and public and published of public? If so we need to make sure we have an active DOI
         if pkg_dict.get('state', 'active') == 'active' and not pkg_dict.get(
             'private', False
-        ):
+        ) and  pkg_dict.get('publishing_status') in ['approved', 'published', 'active']:
             package_id = pkg_dict['id']
 
             # remove user-defined update schemas first (if needed)
