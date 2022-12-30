@@ -46,7 +46,10 @@ def build_metadata_dict(pkg_dict):
             errors[key] = e
 
     # CREATORS
-    _add_required('creators', lambda: [{'full_name': pkg_dict.get('author')}])
+    _add_required('creators', lambda: [{
+        'full_name': pkg_dict.get('metadata_created_institution', 'Urban Big Data Centre'),
+        'is_org': True,
+        }])
 
     # TITLES
     _add_required('titles', lambda: [{'title': pkg_dict.get('title')}])
@@ -79,17 +82,24 @@ def build_metadata_dict(pkg_dict):
 
     # SUBJECTS
     # use the tag list
-    try:
-        tags = pkg_dict.get('tag_string', '').split(',')
-        tags += [
-            tag['name'] if isinstance(tag, dict) else tag
-            for tag in pkg_dict.get('tags', [])
-        ]
+
+    if pkg_dict.get('subjects'):
+        subjects = pkg_dict.get('subjects', '').split(',')
         optional['subjects'] = [
-            {'subject': tag} for tag in sorted({t for t in tags if t != ''})
-        ]
-    except Exception as e:
-        errors['subjects'] = e
+                {'subject': sub} for sub in sorted({t for t in subjects if t != ''})
+            ]
+    else:
+        try:
+            tags = pkg_dict.get('tag_string', '').split(',')
+            tags += [
+                tag['name'] if isinstance(tag, dict) else tag
+                for tag in pkg_dict.get('tags', [])
+            ]
+            optional['subjects'] = [
+                {'subject': tag} for tag in sorted({t for t in tags if t != ''})
+            ]
+        except Exception as e:
+            errors['subjects'] = e
 
     # CONTRIBUTORS
     # use the author and maintainer; no splitting or parsing for either
@@ -162,14 +172,19 @@ def build_metadata_dict(pkg_dict):
 
     # SIZES
     # sum up given sizes from resources in the package and convert from bytes to kilobytes
-    try:
-        resource_sizes = [
-            r.get('size') or 0 for r in pkg_dict.get('resources', []) or []
-        ]
-        total_size = [f'{int(sum(resource_sizes) / 1024)} kb']
-        optional['sizes'] = total_size
-    except Exception as e:
-        errors['sizes'] = e
+
+    # get dataset_file_size from UBDC custom field
+    if pkg_dict.get('dataset_file_size', False):
+        optional['sizes'] = pkg_dict.get('dataset_file_size')
+    else:
+        try:
+            resource_sizes = [
+                r.get('size') or 0 for r in pkg_dict.get('resources', []) or []
+            ]
+            total_size = [f'{int(sum(resource_sizes) / 1024)} kb']
+            optional['sizes'] = total_size
+        except Exception as e:
+            errors['sizes'] = e
 
     # FORMATS
     # list unique formats from package resources
@@ -187,7 +202,7 @@ def build_metadata_dict(pkg_dict):
 
     # VERSION
     # doesn't matter if there's no version, it'll get filtered out later
-    optional['version'] = pkg_dict.get('version')
+    optional['version'] = pkg_dict.get('version', '1.0')
 
     # RIGHTS
     # use the package license and get details from CKAN's license register

@@ -16,6 +16,11 @@ def package_get_year(pkg_dict):
 
     :param pkg_dict: return:
     """
+    # add published year from custom metadata field
+    if pkg_dict.get('metadata_created_date', None):
+        pkg_dict['metadata_created'] =  datetime.strptime(pkg_dict['date_published'], "%Y-%m-%d")
+        return pkg_dict['metadata_created'].year
+
     if not isinstance(pkg_dict['metadata_created'], datetime):
         pkg_dict['metadata_created'] = parser.parse(pkg_dict['metadata_created'])
 
