@@ -175,7 +175,7 @@ def build_metadata_dict(pkg_dict):
 
     # get dataset_file_size from UBDC custom field
     if pkg_dict.get('dataset_file_size', False):
-        optional['sizes'] = pkg_dict.get('dataset_file_size')
+        optional['sizes'] = [pkg_dict.get('dataset_file_size')]
     else:
         try:
             resource_sizes = [
