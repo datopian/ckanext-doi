@@ -46,7 +46,7 @@ PKG_DICT = {
     'groups': [],
     'creator_user_id': '21ff8eeb-38e5-4348-8c1d-f409b2a9ca03',
     'relationships_as_subject': [],
-    'doi_publisher': 'Natural History Museum',
+    'publisher': 'Natural History Museum',
     'doi': '10.4124/gqcx00k4',
     'name': 'test_pkg',
     'isopen': False,
@@ -68,7 +68,7 @@ PKG_DICT = {
         'name': 'test_org_00',
     },
     'revision_id': 'c71800fb-60b7-421f-a7f2-56dc8efaf21d',
-    'doi_date_published': None,
+    'release_date': None,
 }
 
 METADATA_DICT = {

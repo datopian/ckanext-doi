@@ -105,11 +105,11 @@ def build_metadata_dict(pkg_dict):
 
     # CONTRIBUTORS
     optional["contributors"] = []
-    
+
     # DATES
     # created, updated, and doi publish date
     date_errors = {}
-    
+
     try:
         optional['dates'].append(
             {
@@ -130,17 +130,16 @@ def build_metadata_dict(pkg_dict):
     except Exception as e:
         date_errors['updated'] = e
 
-
-    if 'doi_date_published' in pkg_dict:
+    if 'release_date' in pkg_dict:
         try:
             optional['dates'].append(
                 {
                     'dateType': 'Issued',
-                    'date': date_or_none(pkg_dict.get('doi_date_published')),
+                    'date': date_or_none(pkg_dict.get('release_date')),
                 }
             )
         except Exception as e:
-            date_errors['doi_date_published'] = e
+            date_errors['release_date'] = e
 
     # LANGUAGE
     # use language set in CKAN

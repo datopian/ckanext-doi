@@ -81,5 +81,5 @@ class TestDOIPlugin:
         assert package["doi"] == doi.identifier
         assert package["doi_status"] is False
         assert package["domain"] == "dois.are.great.org"
-        assert package["doi_date_published"] is None
-        assert package["doi_publisher"] == "argh!"
+        assert package["release_date"] is None
+        assert package["publisher"] == "argh!"

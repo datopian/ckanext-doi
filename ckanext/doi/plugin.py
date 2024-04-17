@@ -110,10 +110,10 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
             pkg_dict['doi'] = doi.identifier
             pkg_dict['doi_status'] = True if doi.published else False
             pkg_dict['domain'] = get_site_url().replace('http://', '')
-            pkg_dict['doi_date_published'] = (
+            pkg_dict['release_date'] = (
                 datetime.strftime(doi.published, '%Y-%m-%d') if doi.published else None
             )
-            pkg_dict['doi_publisher'] = toolkit.config.get('ckanext.doi.publisher')
+            pkg_dict['publisher'] = toolkit.config.get('ckanext.doi.publisher')
 
     def after_create(self, *args, **kwargs):
         """

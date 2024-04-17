@@ -17,10 +17,10 @@ def package_get_year(pkg_dict):
 
     :param pkg_dict: return:
     """
-    if not isinstance(pkg_dict['metadata_created'], datetime):
-        pkg_dict['metadata_created'] = parser.parse(pkg_dict['metadata_created'])
-
-    return pkg_dict['metadata_created'].year
+    release_date = pkg_dict.get('release_date', '')
+    if not isinstance(release_date, datetime) and release_date:
+        release_date = parser.parse(release_date)
+    return release_date or datetime.now().year
 
 
 def get_site_title():
@@ -77,7 +77,7 @@ def get_authors(creator_list):
     """
     if not creator_list:
         return None
-    
+
     apa_doi_citation = ""
     for i, entry in enumerate(creator_list):
         # Format the author's name according to APA style
@@ -102,9 +102,9 @@ def get_doi_metadata(pkg_dict):
     metadata = {
         'identifier': pkg_dict['doi'],
         'title': pkg_dict['title'],
-        'publisher': pkg_dict['doi_publisher'],
+        'publisher': pkg_dict['publisher'],
         'publicationYear': package_get_year(pkg_dict),
-        'doi_uri':  'https://doi.org/' + pkg_dict['doi'] ,
+        'doi_uri': 'https://doi.org/' + pkg_dict['doi'],
         'creators': get_authors(pkg_dict['creators']),
         'subjects': pkg_dict['tags'],
         'description': pkg_dict['notes'],
