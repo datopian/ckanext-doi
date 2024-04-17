@@ -37,6 +37,7 @@ def build_metadata_dict(pkg_dict):
         'publisher': None,
         'publicationYear': None,
         'resourceType': None,
+        'contributors': [],
     }
 
     def _add_required(key, get_func):
@@ -46,7 +47,18 @@ def build_metadata_dict(pkg_dict):
             errors[key] = e
 
     # CREATORS
-    _add_required('creators', lambda: [{'full_name': pkg_dict.get('author')}])
+    def add_creators():
+        creators = pkg_dict.get('creators') or []
+        return [
+            {
+                'given_name': creator.get('first_name'),
+                'family_name': creator.get('last_name'),
+                'affiliations': creator.get('organisation'),
+            }
+            for creator in creators
+        ]
+
+    _add_required('creators', add_creators)
 
     # TITLES
     _add_required('titles', lambda: [{'title': pkg_dict.get('title')}])
@@ -92,23 +104,12 @@ def build_metadata_dict(pkg_dict):
         errors['subjects'] = e
 
     # CONTRIBUTORS
-    # use the author and maintainer; no splitting or parsing for either
-    # no try/except for this because it's just a simple .get() and if that doesn't work then we
-    # want to know
-    author = pkg_dict.get('author')
-    maintainer = pkg_dict.get('maintainer')
-    if author is not None:
-        optional['contributors'].append(
-            {'contributor_type': 'Researcher', 'full_name': author}
-        )
-    if maintainer is not None:
-        optional['contributors'].append(
-            {'contributor_type': 'DataManager', 'full_name': maintainer}
-        )
-
+    optional["contributors"] = []
+    
     # DATES
     # created, updated, and doi publish date
     date_errors = {}
+    
     try:
         optional['dates'].append(
             {
@@ -118,6 +119,7 @@ def build_metadata_dict(pkg_dict):
         )
     except Exception as e:
         date_errors['created'] = e
+
     try:
         optional['dates'].append(
             {
@@ -127,6 +129,8 @@ def build_metadata_dict(pkg_dict):
         )
     except Exception as e:
         date_errors['updated'] = e
+
+
     if 'doi_date_published' in pkg_dict:
         try:
             optional['dates'].append(
@@ -140,10 +144,7 @@ def build_metadata_dict(pkg_dict):
 
     # LANGUAGE
     # use language set in CKAN
-    try:
-        optional['language'] = ckan_lang()
-    except Exception as e:
-        errors['language'] = e
+    optional['language'] = pkg_dict.get('language', 'en')
 
     # ALTERNATE IDENTIFIERS
     # add permalink back to this site
@@ -320,5 +321,4 @@ def build_xml_dict(metadata_dict):
 
     for plugin in PluginImplementations(IDoi):
         xml_dict = plugin.build_xml_dict(metadata_dict, xml_dict)
-
     return xml_dict

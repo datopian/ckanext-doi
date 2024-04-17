@@ -66,3 +66,49 @@ def doi_test_mode():
     :return: bool
     """
     return toolkit.asbool(get_setting('ckanext.doi.test_mode', default=get_debug()))
+
+
+def get_authors(creator_list):
+    """
+    Get the authors of the package.
+
+    :param creator_list: package dictionary
+    :return: authors string
+    """
+    if not creator_list:
+        return None
+    
+    apa_doi_citation = ""
+    for i, entry in enumerate(creator_list):
+        # Format the author's name according to APA style
+        formatted_author = (
+            entry.get('last_name', '') + ', ' + entry.get('first_name', '')[:1] + '.'
+        )
+        # Append the formatted author to the citation
+        apa_doi_citation += formatted_author
+        # Add comma if there are more authors
+        if i < len(creator_list) - 1:
+            apa_doi_citation += ', '
+
+    return apa_doi_citation
+
+
+def get_doi_metadata(pkg_dict):
+    """
+    Get the DOI metadata for the current package.
+
+    :return: dict
+    """
+    metadata = {
+        'identifier': pkg_dict['doi'],
+        'title': pkg_dict['title'],
+        'publisher': pkg_dict['doi_publisher'],
+        'publicationYear': package_get_year(pkg_dict),
+        'doi_uri':  'https://doi.org/' + pkg_dict['doi'] ,
+        'creators': get_authors(pkg_dict['creators']),
+        'subjects': pkg_dict['tags'],
+        'description': pkg_dict['notes'],
+        'resourceType': "Data set",
+    }
+
+    return metadata

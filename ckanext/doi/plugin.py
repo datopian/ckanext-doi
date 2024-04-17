@@ -16,6 +16,7 @@ from ckanext.doi.lib.helpers import (
     get_site_url,
     package_get_year,
     doi_test_mode,
+    get_doi_metadata
 )
 from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
@@ -139,4 +140,5 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
             'now': datetime.now,
             'get_site_title': get_site_title,
             'doi_test_mode': doi_test_mode,
+            'get_doi_metadata': get_doi_metadata,
         }
