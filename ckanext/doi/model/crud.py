@@ -42,7 +42,9 @@ class DOIQuery:
         return Session.query(DOI).get(identifier)
 
     @classmethod
-    def read_package(cls, package_id, create_if_none=False):
+    def read_package(
+        cls, package_id, version=None, is_version=None, create_if_none=False
+    ):
         """
         Retrieve a record associated with a given package.
 
@@ -53,12 +55,23 @@ class DOIQuery:
         """
         from ckanext.doi.lib.api import DataciteClient
 
-        record = Session.query(DOI).filter(DOI.package_id == package_id).first()
-        if record is None and create_if_none:
+        doi_exist = Session.query(DOI).filter(DOI.package_id == package_id).first()
+        suffix = None
+
+        if is_version and version:
+            version_doi = (
+                Session.query(DOI).filter(DOI.package_id == is_version).first()
+            )
+
+            if version_doi:
+                suffix = f'{version_doi.identifier}.v{version}'
+
+        if doi_exist is None and create_if_none:
             client = DataciteClient()
-            new_doi = client.generate_doi()
-            record = cls.create(new_doi, package_id)
-        return record
+            new_doi = client.generate_doi(suffix=suffix)
+            new_doi = cls.create(new_doi, package_id)
+            return new_doi
+        return doi_exist
 
     @classmethod
     def update_doi(cls, identifier, **kwargs):

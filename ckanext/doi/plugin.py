@@ -16,9 +16,8 @@ from ckanext.doi.lib.helpers import (
     get_site_url,
     package_get_year,
     doi_test_mode,
-    get_doi_metadata
+    get_doi_metadata,
 )
-from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 from ckanext.doi.model.crud import DOIQuery
 
 log = getLogger(__name__)
@@ -53,7 +52,13 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         NB: This is called after creation of a dataset, before resources have been
         added, so state = draft.
         """
-        DOIQuery.read_package(pkg_dict['id'], create_if_none=True)
+      
+        DOIQuery.read_package(
+            pkg_dict['id'],
+            version=pkg_dict.get('version'),
+            is_version=pkg_dict.get('is_version_of'),
+            create_if_none=True,
+        )
 
     ## IPackageController
     def after_dataset_update(self, context, pkg_dict):
@@ -64,40 +69,17 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         network.
         """
         # Is this active and public? If so we need to make sure we have an active DOI
-        if pkg_dict.get('state', 'active') == 'active' and not pkg_dict.get(
+        is_active = pkg_dict.get('state', 'active') == 'active' and not pkg_dict.get(
             'private', False
-        ):
+        )
+        if True:
+
             package_id = pkg_dict['id']
 
             # remove user-defined update schemas first (if needed)
             context.pop('schema', None)
-
-            # Load the package_show version of the dict
-            pkg_show_dict = toolkit.get_action('package_show')(
-                context, {'id': package_id}
-            )
-
-            # Load or create the local DOI (package may not have a DOI if extension was loaded
-            # after package creation)
-            doi = DOIQuery.read_package(package_id, create_if_none=True)
-
-            metadata_dict = build_metadata_dict(pkg_show_dict)
-            xml_dict = build_xml_dict(metadata_dict)
-
             client = DataciteClient()
-
-            if doi.published is None:
-                # metadata gets created before minting
-                client.set_metadata(doi.identifier, xml_dict)
-                client.mint_doi(doi.identifier, package_id)
-                toolkit.h.flash_success('DataCite DOI created')
-            else:
-                same = client.check_for_update(doi.identifier, xml_dict)
-                if not same:
-                    # Not the same, so we want to update the metadata
-                    client.set_metadata(doi.identifier, xml_dict)
-                    toolkit.h.flash_success('DataCite DOI metadata updated')
-
+            client.update_doi(package_id)
         return pkg_dict
 
     # IPackageController

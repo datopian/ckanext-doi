@@ -17,10 +17,10 @@ def package_get_year(pkg_dict):
 
     :param pkg_dict: return:
     """
-    release_date = pkg_dict.get('release_date', '')
+    release_date = pkg_dict.get('releaseDate', '')
     if not isinstance(release_date, datetime) and release_date:
         release_date = parser.parse(release_date)
-    return release_date or datetime.now().year
+    return release_date.year or datetime.now().year
 
 
 def get_site_title():

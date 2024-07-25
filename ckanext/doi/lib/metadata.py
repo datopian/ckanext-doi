@@ -46,8 +46,7 @@ def build_metadata_dict(pkg_dict):
         except Exception as e:
             errors[key] = e
 
-    # CREATORS
-    def add_creators():
+    def _add_creators():
         creators = pkg_dict.get('creators') or []
         return [
             {
@@ -58,7 +57,44 @@ def build_metadata_dict(pkg_dict):
             for creator in creators
         ]
 
-    _add_required('creators', add_creators)
+    def _add_contributors():
+        contributors = pkg_dict.get('contributors', []) or []
+        data_curator = [
+            {
+                'given_name': contributor.get('first_name'),
+                'family_name': contributor.get('last_name'),
+                'affiliations': contributor.get('organisation'),
+                'contributor_type': 'DataCurator',
+            }
+            for contributor in contributors
+        ]
+        contact_points = pkg_dict.get('contact_points', []) or []
+
+        ContactPerson = [
+            {
+                'given_name': person.get('first_name'),
+                'family_name': person.get('last_name'),
+                'affiliations': person.get('organisation'),
+                'contributor_type': 'ContactPerson',
+            }
+            for person in contact_points
+        ]
+        return data_curator + ContactPerson
+
+    def _get_version_doi(id):
+        if not id:
+            return ''
+        data_dict = toolkit.get_action('package_show')(
+            {'ignore_auth': True}, {'id': id}
+        )
+        if data_dict.get('doi'):
+            return data_dict.get('doi')
+
+    # CREATORS
+    _add_required('creators', _add_creators)
+
+    # CONTRIBUTORS
+    _add_required('contributors', _add_contributors)
 
     # TITLES
     _add_required('titles', lambda: [{'title': pkg_dict.get('title')}])
@@ -75,7 +111,6 @@ def build_metadata_dict(pkg_dict):
     # now the optional fields
     optional = {
         'subjects': [],
-        'contributors': [],
         'dates': [],
         'language': '',
         'alternateIdentifiers': [],
@@ -103,8 +138,28 @@ def build_metadata_dict(pkg_dict):
     except Exception as e:
         errors['subjects'] = e
 
-    # CONTRIBUTORS
-    optional["contributors"] = []
+    optional['relatedIdentifiers'] = []
+
+    if pkg_dict.get('has_version'):
+        print(pkg_dict.get('has_version'), _get_version_doi(pkg_dict.get('has_version')))
+        optional['relatedIdentifiers'].append(
+            {
+                'relatedIdentifier': _get_version_doi(pkg_dict.get('has_version')),
+                'relatedIdentifierType': 'DOI',
+                'relationType': 'HasVersion',
+            }
+        )
+
+    if pkg_dict.get('is_version_of'):
+        print(pkg_dict.get('is_version_of'), _get_version_doi(pkg_dict.get('is_version_of')))
+
+        optional['relatedIdentifiers'].append(
+            {
+                'relatedIdentifier': _get_version_doi(pkg_dict.get('is_version_of')),
+                'relatedIdentifierType': 'DOI',
+                'relationType': 'IsVersionOf',
+            }
+        )
 
     # DATES
     # created, updated, and doi publish date
@@ -130,16 +185,16 @@ def build_metadata_dict(pkg_dict):
     except Exception as e:
         date_errors['updated'] = e
 
-    if 'release_date' in pkg_dict:
+    if 'releaseDate' in pkg_dict:
         try:
             optional['dates'].append(
                 {
                     'dateType': 'Issued',
-                    'date': date_or_none(pkg_dict.get('release_date')),
+                    'date': date_or_none(pkg_dict.get('releaseDate')),
                 }
             )
         except Exception as e:
-            date_errors['release_date'] = e
+            date_errors['releaseDate'] = e
 
     # LANGUAGE
     # use language set in CKAN
@@ -185,7 +240,7 @@ def build_metadata_dict(pkg_dict):
 
     # VERSION
     # doesn't matter if there's no version, it'll get filtered out later
-    optional['version'] = pkg_dict.get('version')
+    optional['version'] = str(pkg_dict.get('version'))
 
     # RIGHTS
     # use the package license and get details from CKAN's license register
@@ -247,7 +302,6 @@ def build_metadata_dict(pkg_dict):
         log.debug(error_msg)
         for k, e in optional_errors.items():
             log.debug(f'{k}: {e}')
-
     return metadata_dict
 
 
@@ -297,9 +351,10 @@ def build_xml_dict(metadata_dict):
     for k in optional:
         v = metadata_dict.get(k)
         try:
-            has_value = v is not None and len(v) > 0
+            has_value = v is not None and (not hasattr(v, '__len__') or len(v) > 0)
         except:
             has_value = False
+
         if not has_value:
             continue
         if k == 'contributors':

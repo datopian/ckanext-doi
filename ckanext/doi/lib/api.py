@@ -15,6 +15,7 @@ from ckanext.doi.model.crud import DOIQuery
 from datacite import DataCiteMDSClient, schema42
 from datacite.errors import DataCiteError, DataCiteNotFoundError
 from datetime import datetime as dt
+from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 
 from ckanext.doi.lib.helpers import doi_test_mode
 
@@ -71,7 +72,7 @@ class DataciteClient:
             )
         return prefix
 
-    def generate_doi(self):
+    def generate_doi(self, suffix=None):
         """
         Generate a new DOI which isn't currently in use.
 
@@ -90,8 +91,12 @@ class DataciteClient:
         while attempts > 0:
             # generate a random 8 character identifier
             identifier = ''.join(random.choice(valid_characters) for _ in range(8))
+            year = dt.now().year
             # form the doi using the prefix
-            doi = f'{self.prefix}/{identifier}'
+            if suffix:
+                doi = f'{self.prefix}/{year}.{suffix}'
+            else:
+                doi = f'{self.prefix}/{year}.{identifier}'
 
             if DOIQuery.read_doi(doi) is None:
                 try:
@@ -187,3 +192,38 @@ class DataciteClient:
         else:
             # if the original doesn't have any dates, it's definitely different
             return False
+
+    def update_doi(self, package_id):
+        """
+        Update the metadata for a given DOI on datacite.
+
+        :param doi: the DOI to update the metadata for
+        :param xml_dict: the metadata as an xml dict (generated from build_xml_dict)
+        :return:
+        """
+        package_dict = toolkit.get_action('package_show')(
+            {'ignore_auth': True}, {'id': package_id}
+        )
+
+        doi = DOIQuery.read_package(package_id, create_if_none=True)
+
+        metadata_dict = build_metadata_dict(package_dict)
+        print("================metadata_dict================")
+        print(metadata_dict)
+        print("================end metadata_dict================")
+
+        xml_dict = build_xml_dict(metadata_dict)
+        print("================xml_dict================")
+        print(xml_dict)
+        print("================end xml_dict================")
+
+        # publish doi if it's not already published to datacite
+        if doi.published is None:
+            self.set_metadata(doi.identifier, xml_dict)
+            self.mint_doi(doi.identifier, package_id)
+        else:
+            # update doi if metadata has changed
+            same = self.check_for_update(doi.identifier, xml_dict)
+            if not same:
+                # Not the same, so we want to update the metadata
+                self.set_metadata(doi.identifier, xml_dict)
