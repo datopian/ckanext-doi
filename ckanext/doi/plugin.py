@@ -17,8 +17,10 @@ from ckanext.doi.lib.helpers import (
     package_get_year,
     doi_test_mode,
     get_doi_metadata,
+    url_encode,
 )
 from ckanext.doi.model.crud import DOIQuery
+from ckanext.doi.views import registred_views
 
 log = getLogger(__name__)
 
@@ -31,6 +33,7 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
     implements(interfaces.IConfigurer)
     implements(interfaces.IPackageController, inherit=True)
     implements(interfaces.ITemplateHelpers, inherit=True)
+    implements(interfaces.IBlueprint)
     implements(interfaces.IClick)
 
     ## IClick
@@ -52,7 +55,7 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         NB: This is called after creation of a dataset, before resources have been
         added, so state = draft.
         """
-      
+
         DOIQuery.read_package(
             pkg_dict['id'],
             version=pkg_dict.get('version'),
@@ -115,6 +118,13 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         """
         return self.after_dataset_show(*args, **kwargs)
 
+    # IBlueprint
+    def get_blueprint(self):
+        """
+        Return the blueprint to be registered.
+        """
+        return registred_views()
+
     # ITemplateHelpers
     def get_helpers(self):
         return {
@@ -123,4 +133,5 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
             'get_site_title': get_site_title,
             'doi_test_mode': doi_test_mode,
             'get_doi_metadata': get_doi_metadata,
+            'url_encode': url_encode,
         }

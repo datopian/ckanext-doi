@@ -5,10 +5,10 @@ Renders a citation for a package
 {% set doi = h.get_doi_metadata(pkg_dict) %}
 
 {% block citation %}
-<section class="additional-info">
+<section class="additional-info cite-container">
 
     <h3>{{ _('Cite this as') }}</h3>
-    <div class="citation">
+    <div class="doi-citation">
         <div id="citation-string" class="citation-string">
             {% block default_citation_string %}
             {{ doi["creators"] }} ({{ doi["publicationYear"] }}). <i>{{ doi['title']
@@ -23,7 +23,7 @@ Renders a citation for a package
 
         {% block citation_status %}
         <div id="citation-status">
-            {% if not pkg_dict['doi_status'] %} <div>
+            {% if not pkg_dict[' doi_status'] %} <div>
                 <span class="dataset-private label label-inverse" title="This DOI has not yet been published">
                     <i class="fa fa-lock"></i> Private DOI</span>
                 <small>
@@ -46,18 +46,26 @@ Renders a citation for a package
         {% if not res %}
         <div class="citation-download">
             {% set datacite_url = 'api.test.datacite.org' if h.doi_test_mode() else 'api.datacite.org' %}
-            <a class="btn btn-mini" title="Download BibTeX"
-                href="https://{{ datacite_url }}/dois/application/x-bibtex/{{ pkg_dict['doi'] }}">
+            <a title="Download BibTeX"
+                target="_blank"
+                href="{{ h.url_for('doi.view_doi', identifier=h.url_encode(pkg_dict['doi']), format='x-bibtex') }}">
                 <small><i class="fa fa-file"></i>BibTeX</small>
             </a>
-            <a class="btn btn-mini" title="Download BibTeX"
-                href="https://{{ datacite_url }}/dois/application/vnd.datacite.datacite+xml/{{ pkg_dict['doi'] }}">
+            <a title="Download XML"
+                target="_blank"
+                href="{{ h.url_for('doi.view_doi', identifier=h.url_encode(pkg_dict['doi']), format='vnd.datacite.datacite+xml') }}">
                 <small><i class="fa fa-file"></i>XML</small>
             </a>
-            <a class="btn btn-mini" title="Download BibTeX"
-                href="https://{{ datacite_url }}/dois/application/x-research-info-systems/{{ pkg_dict['doi'] }}">
+            <a title="Download RIS"
+            target="_blank"
+                href="{{ h.url_for('doi.view_doi', identifier=h.url_encode(pkg_dict['doi']), format='x-research-info-systems') }}">
                 <small><i class="fa fa-file"></i>RIS</small>
-        </a>
+            </a>
+            <a title="crosscite citation"
+                target="_blank" 
+                href="http://citation.crosscite.org?doi={{pkg_dict['doi'] }}">
+                <small><i class="fa fa-link"></i>Other formats</small>
+            </a>
         </div>
         {% endif %}
         {% endif %}

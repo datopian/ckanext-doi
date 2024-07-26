@@ -5,6 +5,7 @@
 # Created by the Natural History Museum in London, UK
 
 from datetime import datetime
+import urllib.parse
 
 import dateutil.parser as parser
 from ckan.plugins import toolkit
@@ -112,3 +113,14 @@ def get_doi_metadata(pkg_dict):
     }
 
     return metadata
+
+
+def url_encode(string):
+    """
+    Convert the identifier to a URL.
+
+    :param identifier: the identifier
+    :return: the URL
+    """
+    string = urllib.parse.quote(string, safe='')
+    return string

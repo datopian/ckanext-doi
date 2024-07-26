@@ -208,15 +208,7 @@ class DataciteClient:
         doi = DOIQuery.read_package(package_id, create_if_none=True)
 
         metadata_dict = build_metadata_dict(package_dict)
-        print("================metadata_dict================")
-        print(metadata_dict)
-        print("================end metadata_dict================")
-
         xml_dict = build_xml_dict(metadata_dict)
-        print("================xml_dict================")
-        print(xml_dict)
-        print("================end xml_dict================")
-
         # publish doi if it's not already published to datacite
         if doi.published is None:
             self.set_metadata(doi.identifier, xml_dict)
