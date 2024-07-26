@@ -3,7 +3,7 @@
 #
 # This file is part of ckanext-doi
 # Created by the Natural History Museum in London, UK
-
+import re
 from ckan.model import Session
 
 from ckanext.doi.model.doi import DOI, doi_table
@@ -64,7 +64,8 @@ class DOIQuery:
             )
 
             if version_doi:
-                suffix = f'{version_doi.identifier}.v{version}'
+                identifier = re.sub(r'\.v\d+$', '', version_doi.identifier)
+                suffix = f"{identifier}.v{version}"
 
         if doi_exist is None and create_if_none:
             client = DataciteClient()
