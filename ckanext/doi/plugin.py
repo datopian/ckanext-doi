@@ -75,7 +75,7 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         is_active = pkg_dict.get('state', 'active') == 'active' and not pkg_dict.get(
             'private', False
         )
-        if True:
+        if is_active:
 
             package_id = pkg_dict['id']
 

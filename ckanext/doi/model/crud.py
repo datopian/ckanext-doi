@@ -56,22 +56,26 @@ class DOIQuery:
         from ckanext.doi.lib.api import DataciteClient
 
         doi_exist = Session.query(DOI).filter(DOI.package_id == package_id).first()
-        suffix = None
-
+        identifier = None
+        
         if is_version and version:
+            # Find the DOI for the version
             version_doi = (
                 Session.query(DOI).filter(DOI.package_id == is_version).first()
             )
 
             if version_doi:
+                # Remove existing version suffix and append the new version
                 identifier = re.sub(r'\.v\d+$', '', version_doi.identifier)
-                suffix = f"{identifier}.v{version}"
+                identifier = f"{identifier}.v{version}"
 
+		# If no DOI exists and creation is allowed
         if doi_exist is None and create_if_none:
             client = DataciteClient()
-            new_doi = client.generate_doi(suffix=suffix)
+            new_doi = client.generate_doi(identifier=identifier)
             new_doi = cls.create(new_doi, package_id)
             return new_doi
+        
         return doi_exist
 
     @classmethod

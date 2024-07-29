@@ -72,7 +72,7 @@ class DataciteClient:
             )
         return prefix
 
-    def generate_doi(self, suffix=None):
+    def generate_doi(self, identifier=None):
         """
         Generate a new DOI which isn't currently in use.
 
@@ -89,15 +89,15 @@ class DataciteClient:
         attempts = 5
 
         while attempts > 0:
-            # generate a random 8 character identifier
-            identifier = ''.join(random.choice(valid_characters) for _ in range(8))
+            
             year = dt.now().year
             # form the doi using the prefix
-            if suffix:
-                doi = f'{self.prefix}/{year}.{suffix}'
+            if identifier:
+                doi = identifier
             else:
-                doi = f'{self.prefix}/{year}.{identifier}'
-
+                # generate a random 8 character identifier
+                random_identifier = ''.join(random.choice(valid_characters) for _ in range(8))
+                doi = f'{self.prefix}/{year}.{random_identifier}'
             if DOIQuery.read_doi(doi) is None:
                 try:
                     self.client.metadata_get(doi)
