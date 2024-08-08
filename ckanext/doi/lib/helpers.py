@@ -106,7 +106,7 @@ def get_doi_metadata(pkg_dict):
         'publisher': pkg_dict['publisher'],
         'publicationYear': package_get_year(pkg_dict),
         'doi_uri': 'https://doi.org/' + pkg_dict['doi'],
-        'creators': get_authors(pkg_dict['creators']),
+        'creators': get_authors(pkg_dict.get('creators', [])),
         'subjects': pkg_dict['tags'],
         'description': pkg_dict['notes'],
         'resourceType': "Data set",
