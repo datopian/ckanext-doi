@@ -76,13 +76,12 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
             'private', False
         )
         if is_active:
-
             package_id = pkg_dict['id']
 
             # remove user-defined update schemas first (if needed)
             context.pop('schema', None)
             client = DataciteClient()
-            client.update_doi(package_id)
+            client.update_doi(package_id, pkg_dict)
         return pkg_dict
 
     # IPackageController

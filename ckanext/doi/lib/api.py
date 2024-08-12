@@ -193,7 +193,7 @@ class DataciteClient:
             # if the original doesn't have any dates, it's definitely different
             return False
 
-    def update_doi(self, package_id):
+    def update_doi(self, package_id, pkg_dict=None):
         """
         Update the metadata for a given DOI on datacite.
 
@@ -201,10 +201,13 @@ class DataciteClient:
         :param xml_dict: the metadata as an xml dict (generated from build_xml_dict)
         :return:
         """
-        package_dict = toolkit.get_action('package_show')(
-            {'ignore_auth': True}, {'id': package_id}
-        )
-
+        if pkg_dict:
+            package_dict = pkg_dict
+        else:
+            package_dict = toolkit.get_action('package_show')(
+                {'ignore_auth': True}, {'id': package_id}
+            )
+  
         doi = DOIQuery.read_package(package_id, create_if_none=True)
 
         metadata_dict = build_metadata_dict(package_dict)
