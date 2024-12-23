@@ -7,6 +7,7 @@ import re
 from ckan.model import Session
 
 from ckanext.doi.model.doi import DOI, doi_table
+from ckan.plugins import toolkit as tk
 
 
 class DOIQuery:
@@ -43,7 +44,12 @@ class DOIQuery:
 
     @classmethod
     def read_package(
-        cls, package_id, version=None, is_version=None, create_if_none=False
+        cls,
+        package_id,
+        version=None,
+        is_version=None,
+        requested_identifier=None,
+        create_if_none=False,
     ):
         """
         Retrieve a record associated with a given package.
@@ -57,7 +63,7 @@ class DOIQuery:
 
         doi_exist = Session.query(DOI).filter(DOI.package_id == package_id).first()
         identifier = None
-        
+
         if is_version and version:
             # Find the DOI for the version
             version_doi = (
@@ -68,14 +74,19 @@ class DOIQuery:
                 # Remove existing version suffix and append the new version
                 identifier = re.sub(r'\.v\d+$', '', version_doi.identifier)
                 identifier = f"{identifier}.v{version}"
-
-		# If no DOI exists and creation is allowed
-        if doi_exist is None and create_if_none:
-            client = DataciteClient()
-            new_doi = client.generate_doi(identifier=identifier)
-            new_doi = cls.create(new_doi, package_id)
-            return new_doi
         
+        # If no DOI exists and creation is allowed
+        if doi_exist is None and create_if_none:
+            try:
+                if requested_identifier:
+                    new_doi = cls.create(requested_identifier, package_id)
+                else:
+                    client = DataciteClient()
+                    new_doi = client.generate_doi(identifier=identifier)
+                    new_doi = cls.create(new_doi, package_id)
+                return new_doi
+            except Exception as e:
+                raise tk.ValidationError(f"Error creating DOI: {e}")
         return doi_exist
 
     @classmethod
