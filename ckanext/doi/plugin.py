@@ -3,7 +3,7 @@
 #
 # This file is part of ckanext-doi
 # Created by the Natural History Museum in London, UK
-
+import re
 from datetime import datetime
 from logging import getLogger
 
@@ -25,6 +25,15 @@ from ckanext.doi.views import registred_views
 log = getLogger(__name__)
 
 
+def doi_validator(key, data, errors, context):
+    value = data.get(key)
+    PATTERN = re.compile("^10\.[0-9]{4,9}/[-._;()/:a-zA-Z0-9]+$")
+
+    if value:
+        if not PATTERN.match(value):
+            errors[key].append(toolkit._("Invalid DOI format"))
+            return
+        
 class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
     """
     CKAN DOI Extension.
@@ -35,6 +44,7 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
     implements(interfaces.ITemplateHelpers, inherit=True)
     implements(interfaces.IBlueprint)
     implements(interfaces.IClick)
+    implements(interfaces.IValidators)
 
     ## IClick
     def get_commands(self):
@@ -55,11 +65,11 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         NB: This is called after creation of a dataset, before resources have been
         added, so state = draft.
         """
-
         DOIQuery.read_package(
             pkg_dict['id'],
             version=pkg_dict.get('version'),
             is_version=pkg_dict.get('is_version_of'),
+            requested_identifier= pkg_dict.get('doi', None),
             create_if_none=True,
         )
 
@@ -77,7 +87,6 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         )
         if is_active:
             package_id = pkg_dict['id']
-
             # remove user-defined update schemas first (if needed)
             context.pop('schema', None)
             client = DataciteClient()
@@ -123,6 +132,12 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
         Return the blueprint to be registered.
         """
         return registred_views()
+    
+    # IValidators
+    def get_validators(self):
+        return {
+            'doi_validator': doi_validator,
+        }
 
     # ITemplateHelpers
     def get_helpers(self):

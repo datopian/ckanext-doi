@@ -75,29 +75,23 @@ class DataciteClient:
     def generate_doi(self, identifier=None):
         """
         Generate a new DOI which isn't currently in use.
-
+    
         The database is checked for previous
         usage, as is Datacite itself. Use whatever value is retuned from this function quickly to
         avoid double use as this function uses no locking.
         :return: the full, unique DOI
         """
-        # the list of valid characters is larger than just lowercase and the digits but we don't
-        # need that many options and URLs with just alphanumeric characters in them are nicer. We
-        # just use lowercase characters to avoid any issues with case being ignored
         valid_characters = string.ascii_lowercase + string.digits
-
         attempts = 5
-
+    
         while attempts > 0:
-            
-            year = dt.now().year
-            # form the doi using the prefix
             if identifier:
                 doi = identifier
             else:
-                # generate a random 8 character identifier
                 random_identifier = ''.join(random.choice(valid_characters) for _ in range(8))
+                year = dt.now().year
                 doi = f'{self.prefix}/{year}.{random_identifier}'
+    
             if DOIQuery.read_doi(doi) is None:
                 try:
                     self.client.metadata_get(doi)
@@ -109,7 +103,7 @@ class DataciteClient:
                         f'error: {e}'
                     )
             attempts -= 1
-        raise Exception('Failed to generate a DOI')
+        raise toolkit.ValidationError('Could not generate DOI')
 
     def mint_doi(self, doi, package_id):
         """
