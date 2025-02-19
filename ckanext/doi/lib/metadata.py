@@ -141,7 +141,6 @@ def build_metadata_dict(pkg_dict):
     optional['relatedIdentifiers'] = []
 
     if pkg_dict.get('has_version'):
-        print(pkg_dict.get('has_version'), _get_version_doi(pkg_dict.get('has_version')))
         optional['relatedIdentifiers'].append(
             {
                 'relatedIdentifier': _get_version_doi(pkg_dict.get('has_version')),
@@ -151,7 +150,6 @@ def build_metadata_dict(pkg_dict):
         )
 
     if pkg_dict.get('is_version_of'):
-        print(pkg_dict.get('is_version_of'), _get_version_doi(pkg_dict.get('is_version_of')))
 
         optional['relatedIdentifiers'].append(
             {
@@ -203,7 +201,10 @@ def build_metadata_dict(pkg_dict):
     # ALTERNATE IDENTIFIERS
     # add permalink back to this site
     try:
-        permalink = f'{get_site_url()}/dataset/{pkg_dict["id"]}'
+        if toolkit.config.get('ckanext.frontend_url'):
+            permalink = f'{toolkit.config.get("ckanext.frontend_url")}/dataset/{pkg_dict["name"]}'
+        else:
+            permalink = f'{get_site_url()}/dataset/{pkg_dict["name"]}'
         optional['alternateIdentifiers'] = [
             {'alternateIdentifierType': 'URL', 'alternateIdentifier': permalink}
         ]

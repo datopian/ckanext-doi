@@ -75,7 +75,7 @@ class DataciteClient:
     def generate_doi(self, identifier=None):
         """
         Generate a new DOI which isn't currently in use.
-    
+
         The database is checked for previous
         usage, as is Datacite itself. Use whatever value is retuned from this function quickly to
         avoid double use as this function uses no locking.
@@ -83,15 +83,17 @@ class DataciteClient:
         """
         valid_characters = string.ascii_lowercase + string.digits
         attempts = 5
-    
+
         while attempts > 0:
             if identifier:
                 doi = identifier
             else:
-                random_identifier = ''.join(random.choice(valid_characters) for _ in range(8))
+                random_identifier = ''.join(
+                    random.choice(valid_characters) for _ in range(8)
+                )
                 year = dt.now().year
                 doi = f'{self.prefix}/{year}.{random_identifier}'
-    
+
             if DOIQuery.read_doi(doi) is None:
                 try:
                     self.client.metadata_get(doi)
@@ -114,7 +116,12 @@ class DataciteClient:
         """
 
         # create the URL the DOI will point to, i.e. the package page
-        site = toolkit.config.get('ckan.site_url')
+        fontend_url = toolkit.config.get('ckanext.frontend_url')
+        if fontend_url:
+            site = fontend_url
+        else:
+            site = toolkit.config.get('ckan.site_url')
+
         if site[-1] != '/':
             site += '/'
         permalink = f'{site}dataset/{package_id}'
@@ -139,8 +146,12 @@ class DataciteClient:
 
         # check that the data is valid, this will raise a JSON schema exception if there are issues
         schema42.validator.validate(xml_dict)
+        url = xml_dict.get('alternateIdentifiers', [])[0].get('alternateIdentifier')
+
 
         xml_doc = schema42.tostring(xml_dict)
+        # update the URL the DOI points to
+        self.client.doi_post(doi, url)
         # create the metadata on datacite
         self.client.metadata_post(xml_doc)
 
@@ -201,7 +212,7 @@ class DataciteClient:
             package_dict = toolkit.get_action('package_show')(
                 {'ignore_auth': True}, {'id': package_id}
             )
-  
+
         doi = DOIQuery.read_package(package_id, create_if_none=True)
 
         metadata_dict = build_metadata_dict(package_dict)
@@ -209,7 +220,7 @@ class DataciteClient:
         # publish doi if it's not already published to datacite
         if doi.published is None:
             self.set_metadata(doi.identifier, xml_dict)
-            self.mint_doi(doi.identifier, package_id)
+            self.mint_doi(doi.identifier, package_dict['name'])
         else:
             # update doi if metadata has changed
             same = self.check_for_update(doi.identifier, xml_dict)

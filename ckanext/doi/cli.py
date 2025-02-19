@@ -71,7 +71,9 @@ def update_doi(package_ids):
         return
 
     for record in dois_to_update:
-        pkg_dict = toolkit.get_action('package_show')({}, {'id': record.package_id})
+        pkg_dict = toolkit.get_action('package_show')({
+            'ignore_auth': True
+        }, {'id': record.package_id})
         title = pkg_dict.get('title', record.package_id)
 
         if record.published is None:
@@ -86,12 +88,13 @@ def update_doi(package_ids):
             continue
 
         metadata_dict = build_metadata_dict(pkg_dict)
+
         xml_dict = build_xml_dict(metadata_dict)
 
         client = DataciteClient()
 
         same = client.check_for_update(record.identifier, xml_dict)
-        if not same:
+        if True:
             try:
                 client.set_metadata(record.identifier, xml_dict)
                 click.secho(f'Updated "{title}"', fg='green')
