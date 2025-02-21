@@ -146,12 +146,9 @@ class DataciteClient:
 
         # check that the data is valid, this will raise a JSON schema exception if there are issues
         schema42.validator.validate(xml_dict)
-        url = xml_dict.get('alternateIdentifiers', [])[0].get('alternateIdentifier')
-
 
         xml_doc = schema42.tostring(xml_dict)
-        # update the URL the DOI points to
-        self.client.doi_post(doi, url)
+       
         # create the metadata on datacite
         self.client.metadata_post(xml_doc)
 
@@ -225,5 +222,9 @@ class DataciteClient:
             # update doi if metadata has changed
             same = self.check_for_update(doi.identifier, xml_dict)
             if not same:
+                url = xml_dict.get('alternateIdentifiers', [])[0].get('alternateIdentifier')
+                # update the url if it has changed
+                self.client.doi_post(doi.identifier, url)
+
                 # Not the same, so we want to update the metadata
                 self.set_metadata(doi.identifier, xml_dict)

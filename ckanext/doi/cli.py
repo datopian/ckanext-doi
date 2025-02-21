@@ -94,8 +94,10 @@ def update_doi(package_ids):
         client = DataciteClient()
 
         same = client.check_for_update(record.identifier, xml_dict)
-        if True:
+        if not same:
             try:
+                url = xml_dict.get('alternateIdentifiers', [])[0].get('alternateIdentifier')
+                client.client.doi_post(record.identifier, url)
                 client.set_metadata(record.identifier, xml_dict)
                 click.secho(f'Updated "{title}"', fg='green')
             except DataCiteError as e:
