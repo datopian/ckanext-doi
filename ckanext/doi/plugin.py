@@ -89,8 +89,13 @@ class DOIPlugin(SingletonPlugin, toolkit.DefaultDatasetForm):
             package_id = pkg_dict['id']
             # remove user-defined update schemas first (if needed)
             context.pop('schema', None)
-            client = DataciteClient()
-            client.update_doi(package_id, pkg_dict)
+            try:
+                client = DataciteClient()
+                client.update_doi(package_id, pkg_dict)
+            except Exception as e:
+                context['defer_commit'] = True 
+                context['doi_error'] = True
+                context['doi_error_message'] = str(e)
         return pkg_dict
 
     # IPackageController
