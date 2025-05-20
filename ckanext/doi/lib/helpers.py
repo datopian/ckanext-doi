@@ -23,6 +23,7 @@ def package_get_year(pkg_dict):
         release_date = parser.parse(release_date)
     return release_date.year if release_date else None
 
+
 def get_site_title():
     """
     Helper function to return the config site title, if it exists.
@@ -70,27 +71,30 @@ def doi_test_mode():
 
 def get_authors(creator_list):
     """
-    Get the authors of the package.
+    Get the authors of the package, handling both persons and organizations.
 
-    :param creator_list: package dictionary
+    :param creator_list: list of dicts (person/organisation)
     :return: authors string
     """
     if not creator_list:
         return None
 
-    apa_doi_citation = ""
-    for i, entry in enumerate(creator_list):
-        # Format the author's name according to APA style
-        formatted_author = (
-            entry.get('last_name', '') + ', ' + entry.get('first_name', '')[:1] + '.'
-        )
-        # Append the formatted author to the citation
-        apa_doi_citation += formatted_author
-        # Add comma if there are more authors
-        if i < len(creator_list) - 1:
-            apa_doi_citation += ', '
-
-    return apa_doi_citation
+    authors = []
+    for entry in creator_list:
+        if entry.get('type') == 'person':
+            last = entry.get('last_name', '')
+            first = entry.get('first_name', '')
+            affiliation = entry.get('organisation', '')
+            formatted = f"{last}, {first[:1]}." if last or first else ''
+            if affiliation:
+                formatted += f" ({affiliation})"
+            if formatted:
+                authors.append(formatted)
+        elif entry.get('type') == 'organisation':
+            name = entry.get('name') or entry.get('acronym', '')
+            if name:
+                authors.append(name)
+    return ', '.join(authors) if authors else None
 
 
 def get_doi_metadata(pkg_dict):
