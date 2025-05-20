@@ -48,14 +48,39 @@ def build_metadata_dict(pkg_dict):
 
     def _add_creators():
         creators = pkg_dict.get('creators') or []
-        return [
-            {
-                'given_name': creator.get('first_name'),
-                'family_name': creator.get('last_name'),
-                'affiliations': creator.get('organisation'),
-            }
-            for creator in creators
-        ]
+        result = []
+        for creator in creators:
+            if creator.get('type') == 'person':
+                result.append(
+                    {
+                        'name': f"{creator.get('first_name')} {creator.get('last_name')}",
+                        'given_name': creator.get('first_name'),
+                        'family_name': creator.get('last_name'),
+                        'affiliations': [{
+                            'affiliation': creator.get('organisation'),
+                        }],
+                        'nameType': 'Personal',
+                    }
+                )
+            elif creator.get('type') == 'organisation':
+                affiliation = {'affiliation': creator.get('name')}
+                if creator.get('ror'):
+                    affiliation['nameIdentifiers'] = [
+                        {
+                            'nameIdentifier': f'http://ror.org/{creator.get("ror")}',
+                            'nameIdentifierScheme': 'ROR',
+                            'schemeURI': 'https://ror.org/',
+                        }
+                    ]
+                org_dict = {
+                    'name': creator.get('name') or creator.get('acronym'),
+                    'affiliations': [affiliation],
+                    'nameType': 'Organizational',
+                }
+                result.append(org_dict)
+                            
+
+        return result
 
     def _add_contributors():
         contributors = pkg_dict.get('contributors', []) or []
@@ -330,8 +355,7 @@ def build_xml_dict(metadata_dict):
         'schemaVersion': 'http://datacite.org/schema/kernel-4',
     }
 
-    for creator in metadata_dict.get('creators', []):
-        xml_dict['creators'].append(xml_utils.create_contributor(**creator))
+    xml_dict['creators'] = metadata_dict.get('creators', [])
 
     optional = [
         'subjects',
