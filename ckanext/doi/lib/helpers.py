@@ -84,10 +84,7 @@ def get_authors(creator_list):
         if entry.get('type') == 'person':
             last = entry.get('last_name', '')
             first = entry.get('first_name', '')
-            affiliation = entry.get('organisation', '')
             formatted = f"{last}, {first[:1]}." if last or first else ''
-            if affiliation:
-                formatted += f" ({affiliation})"
             if formatted:
                 authors.append(formatted)
         elif entry.get('type') == 'organisation':
