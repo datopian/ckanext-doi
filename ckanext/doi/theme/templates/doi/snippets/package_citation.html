@@ -3,6 +3,9 @@ Renders a citation for a package
 #}
 
 {% set doi = h.get_doi_metadata(pkg_dict) %}
+{% set doi_parts = doi["doi_uri"].split('/') %}
+{% set suffix = doi_parts[-1] %}
+{% set year = suffix.split('.')[0] %}
 
 {% block citation %}
 <section class="additional-info cite-container">
@@ -11,7 +14,7 @@ Renders a citation for a package
     <div class="doi-citation">
         <div id="citation-string" class="citation-string">
             {% block default_citation_string %}
-            {{ doi["creators"] }} ({{ doi["publicationYear"] }}). <i>{{ doi['title']
+            {{ doi["creators"] }} ({{ year }}). <i>{{ doi['title']
                 }}</i> [Data set]. {{ doi['publisher'] }}.
             {% block citation_link %}
             <a href='{{ doi["doi_uri"] }}'' target="_blank">
