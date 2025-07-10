@@ -56,9 +56,11 @@ def build_metadata_dict(pkg_dict):
                         'name': f"{creator.get('first_name')} {creator.get('last_name')}",
                         'given_name': creator.get('first_name'),
                         'family_name': creator.get('last_name'),
-                        'affiliations': [{
-                            'affiliation': creator.get('organisation'),
-                        }],
+                        'affiliations': [
+                            {
+                                'affiliation': creator.get('organisation'),
+                            }
+                        ],
                         'nameType': 'Personal',
                     }
                 )
@@ -78,33 +80,57 @@ def build_metadata_dict(pkg_dict):
                     'nameType': 'Organizational',
                 }
                 result.append(org_dict)
-                            
 
         return result
 
     def _add_contributors():
         contributors = pkg_dict.get('contributors', []) or []
-        data_curator = [
-            {
+        contributor_list = []
+        
+        # Process regular contributors
+        for contributor in contributors:
+            contributor_list.append({
                 'given_name': contributor.get('first_name'),
                 'family_name': contributor.get('last_name'),
                 'affiliations': contributor.get('organisation'),
-                'contributor_type': 'DataCurator',
-            }
-            for contributor in contributors
-        ]
+                'contributor_type': contributor.get('type', 'DataCurator'),
+            })
+        
+        # Process contact points
         contact_points = pkg_dict.get('contact_points', []) or []
+        for contact_point in contact_points:
+            if contact_point.get('type') == 'person':
+                contributor_list.append({
+                    'given_name': contact_point.get('first_name'),
+                    'family_name': contact_point.get('last_name'),
+                    'affiliations': contact_point.get('organisation'),
+                    'contributor_type': 'ContactPerson',
+                })
+            elif contact_point.get('type') == 'organisation':
+                identifiers = []
+                if contact_point.get('ror'):
+                    identifiers.append({
+                        'identifier': f'http://ror.org/{contact_point.get("ror")}',
+                        'scheme': 'ROR',
+                        'scheme_uri': 'https://ror.org/'
+                    })
+                if contact_point.get('homepage_url'):
+                    identifiers.append({
+                        'identifier': contact_point.get('homepage_url'),
+                        'scheme': 'URL'
+                    })
+                
+                org_dict = {
+                    'full_name': contact_point.get('name') or contact_point.get('acronym'),
+                    'is_org': True,
+                    'contributor_type': 'ContactPerson',
+                    'affiliations': [contact_point.get('name')],
+                    'identifiers': identifiers if identifiers else None
+                }
+                
+                contributor_list.append(org_dict)
 
-        ContactPerson = [
-            {
-                'given_name': person.get('first_name'),
-                'family_name': person.get('last_name'),
-                'affiliations': person.get('organisation'),
-                'contributor_type': 'ContactPerson',
-            }
-            for person in contact_points
-        ]
-        return data_curator + ContactPerson
+        return contributor_list
 
     def _get_version_doi(id):
         if not id:
