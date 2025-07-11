@@ -93,7 +93,7 @@ def build_metadata_dict(pkg_dict):
                 'given_name': contributor.get('first_name'),
                 'family_name': contributor.get('last_name'),
                 'affiliations': contributor.get('organisation'),
-                'contributor_type': contributor.get('type', 'DataCurator'),
+                'contributor_type': contributor.get('type', 'other'),
             })
         
         # Process contact points
@@ -123,7 +123,7 @@ def build_metadata_dict(pkg_dict):
                 org_dict = {
                     'full_name': contact_point.get('name') or contact_point.get('acronym'),
                     'is_org': True,
-                    'contributor_type': 'ContactPerson',
+                    'contributor_type': 'other',
                     'affiliations': [contact_point.get('name')],
                     'identifiers': identifiers if identifiers else None
                 }
