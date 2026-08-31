@@ -1,4 +1,5 @@
 import click
+from sqlalchemy import inspect
 from ckan import model
 from ckan.model import Session
 from ckan.plugins import toolkit
@@ -22,16 +23,19 @@ def doi():
 
 @doi.command(name='initdb')
 def init_db():
-    if not model.package_table.exists():
+    engine = model.meta.engine
+    inspector = inspect(engine)
+
+    if not inspector.has_table('package'):
         click.secho(
             'Package table must exist before initialising the DOI table', fg='red'
         )
         raise click.Abort()
 
-    if doi_model.doi_table.exists():
+    if inspector.has_table('doi'):
         click.secho('DOI table already exists', fg='green')
     else:
-        doi_model.doi_table.create()
+        doi_model.doi_table.create(engine)
         click.secho('DOI table created', fg='green')
 
 

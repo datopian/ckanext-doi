@@ -33,7 +33,7 @@ class DOI(DomainObject):
     pass
 
 
-meta.mapper(
+meta.registry.map_imperatively(
     DOI,
     doi_table,
     properties={
