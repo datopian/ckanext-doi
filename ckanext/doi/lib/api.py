@@ -4,24 +4,61 @@
 # This file is part of ckanext-doi
 # Created by the Natural History Museum in London, UK
 
-import string
-
 import logging
 import random
+import string
+from datetime import datetime as dt
+
 import xmltodict
-from ckan.common import asbool
 from ckan.plugins import toolkit
-from ckanext.doi.model.crud import DOIQuery
 from datacite import DataCiteMDSClient, schema42
 from datacite.errors import DataCiteError, DataCiteNotFoundError
-from datetime import datetime as dt
-from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
 
 from ckanext.doi.lib.helpers import doi_test_mode
+from ckanext.doi.lib.metadata import build_metadata_dict, build_xml_dict
+from ckanext.doi.model.crud import DOIQuery
 
 log = logging.getLogger(__name__)
 
 DEPRECATED_TEST_PREFIX = '10.5072'
+
+DOI_CHARACTERS = string.ascii_lowercase + string.digits
+DOI_SUFFIX_LENGTH = 8
+GENERATE_ATTEMPTS = 5
+
+
+def _ensure_list(value):
+    """
+    Coerce a value parsed out of xml into a list.
+
+    xmltodict collapses single-entry lists into the entry itself, so this normalises
+    both shapes back into a list.
+
+    :param value: the value to coerce
+    :return: a list
+    """
+    if isinstance(value, list):
+        return value
+    if value is None:
+        return []
+    return [value]
+
+
+def _drop_updated_dates(resource_dict):
+    """
+    Replace the "date" list of a parsed resource dict with one that excludes the
+    "Updated" dates.
+
+    The Updated date changes on every edit, so it's ignored when comparing metadata.
+
+    :param resource_dict: a resource dict parsed from datacite xml; modified in place
+    """
+    dates = _ensure_list(resource_dict['dates']['date'])
+    resource_dict['dates']['date'] = [
+        date
+        for date in dates
+        if isinstance(date, dict) and date.get('@dateType') != 'Updated'
+    ]
 
 
 class DataciteClient:
@@ -39,7 +76,8 @@ class DataciteClient:
             'test_mode': self.test_mode,
         }
         if self.test_mode:
-            # temporary fix because datacite 1.0.1 isn't updated for the test prefix deprecation
+            # temporary fix because datacite 1.0.1 isn't updated for the test prefix
+            # deprecation
             client_config['url'] = self.test_url
         self.client = DataCiteMDSClient(**client_config)
 
@@ -72,6 +110,38 @@ class DataciteClient:
             )
         return prefix
 
+    def _random_doi(self):
+        """
+        Build a random DOI using the configured prefix and the current year.
+
+        :return: a DOI string
+        """
+        random_identifier = ''.join(
+            random.choice(DOI_CHARACTERS) for _ in range(DOI_SUFFIX_LENGTH)
+        )
+        return f'{self.prefix}/{dt.now().year}.{random_identifier}'
+
+    def _is_doi_available(self, doi):
+        """
+        Check whether a DOI is free to use, in the database and then on datacite.
+
+        :param doi: the DOI to check
+        :return: True if the DOI is known to be unused
+        """
+        if DOIQuery.read_doi(doi) is not None:
+            return False
+        try:
+            self.client.metadata_get(doi)
+        except DataCiteNotFoundError:
+            # not found on datacite, so it's available
+            return True
+        except DataCiteError as e:
+            log.warning(
+                f'Error whilst checking new DOIs with DataCite. DOI: {doi}, '
+                f'error: {e}'
+            )
+        return False
+
     def generate_doi(self, identifier=None):
         """
         Generate a new DOI which isn't currently in use.
@@ -81,30 +151,10 @@ class DataciteClient:
         avoid double use as this function uses no locking.
         :return: the full, unique DOI
         """
-        valid_characters = string.ascii_lowercase + string.digits
-        attempts = 5
-
-        while attempts > 0:
-            if identifier:
-                doi = identifier
-            else:
-                random_identifier = ''.join(
-                    random.choice(valid_characters) for _ in range(8)
-                )
-                year = dt.now().year
-                doi = f'{self.prefix}/{year}.{random_identifier}'
-
-            if DOIQuery.read_doi(doi) is None:
-                try:
-                    self.client.metadata_get(doi)
-                except DataCiteNotFoundError:
-                    return doi
-                except DataCiteError as e:
-                    log.warning(
-                        f'Error whilst checking new DOIs with DataCite. DOI: {doi}, '
-                        f'error: {e}'
-                    )
-            attempts -= 1
+        for _ in range(GENERATE_ATTEMPTS):
+            doi = identifier if identifier else self._random_doi()
+            if self._is_doi_available(doi):
+                return doi
         raise toolkit.ValidationError('Could not generate DOI')
 
     def mint_doi(self, doi, package_id):
@@ -114,19 +164,17 @@ class DataciteClient:
         :param doi: the doi (full, prefix and suffix)
         :param package_id: the id of the package this doi is for
         """
-
         # create the URL the DOI will point to, i.e. the package page
-        fontend_url = toolkit.config.get('ckanext.frontend_url')
-        if fontend_url:
-            site = fontend_url
-        else:
-            site = toolkit.config.get('ckan.site_url')
-
+        site = toolkit.config.get('ckanext.frontend_url') or toolkit.config.get(
+            'ckan.site_url'
+        )
         if site[-1] != '/':
             site += '/'
         permalink = f'{site}dataset/{package_id}'
+
         # mint the DOI
         self.client.doi_post(doi, permalink)
+
         if DOIQuery.read_doi(doi) is None and DOIQuery.read_package(package_id) is None:
             DOIQuery.create(doi, package_id)
         elif DOIQuery.read_doi(doi) is None:
@@ -144,13 +192,12 @@ class DataciteClient:
         """
         xml_dict['identifiers'] = [{'identifierType': 'DOI', 'identifier': doi}]
 
-        # check that the data is valid, this will raise a JSON schema exception if there are issues
+        # check that the data is valid, this will raise a JSON schema exception if there
+        # are issues
         schema42.validator.validate(xml_dict)
 
-        xml_doc = schema42.tostring(xml_dict)
-       
         # create the metadata on datacite
-        self.client.metadata_post(xml_doc)
+        self.client.metadata_post(schema42.tostring(xml_dict))
 
     def get_metadata(self, doi):
         """
@@ -160,10 +207,9 @@ class DataciteClient:
         :return:
         """
         try:
-            metadata = self.client.metadata_get(doi)
+            return self.client.metadata_get(doi)
         except DataCiteNotFoundError:
-            metadata = None
-        return metadata
+            return None
 
     def check_for_update(self, doi, xml_dict):
         """
@@ -173,34 +219,26 @@ class DataciteClient:
         :param xml_dict: the xml_dict generated by build_xml_dict
         :return: True if the two are the same, False if not
         """
-        def _ensure_list(val):
-            if isinstance(val, list):
-                return val
-            elif val is None:
-                return []
-            else:
-                return [val]
         posted_xml = self.get_metadata(doi)
         if posted_xml is None or posted_xml.strip() == '':
             return False
+
         posted_xml_dict = dict(xmltodict.parse(posted_xml).get('resource', {}))
         new_xml_dict = dict(xmltodict.parse(schema42.tostring(xml_dict))['resource'])
+
         if 'identifier' in posted_xml_dict:
             del posted_xml_dict['identifier']
+
         has_dates = 'dates' in posted_xml_dict and 'date' in posted_xml_dict['dates']
-        if has_dates:
-            posted_dates = _ensure_list(posted_xml_dict['dates']['date'])
-            new_dates = _ensure_list(new_xml_dict['dates']['date'])
-            posted_xml_dict['dates']['date'] = [
-                d for d in posted_dates if isinstance(d, dict) and d.get('@dateType') != 'Updated'
-            ]
-            new_xml_dict['dates']['date'] = [
-                d for d in new_dates if isinstance(d, dict) and d.get('@dateType') != 'Updated'
-            ]
-            return posted_xml_dict == new_xml_dict
-        else:
+        if not has_dates:
             # if the original doesn't have any dates, it's definitely different
             return False
+
+        # the Updated date always changes, so exclude it from the comparison
+        _drop_updated_dates(posted_xml_dict)
+        _drop_updated_dates(new_xml_dict)
+
+        return posted_xml_dict == new_xml_dict
 
     def update_doi(self, package_id, pkg_dict=None):
         """
@@ -210,28 +248,24 @@ class DataciteClient:
         :param xml_dict: the metadata as an xml dict (generated from build_xml_dict)
         :return:
         """
-        if pkg_dict:
-            package_dict = pkg_dict
-        else:
+        package_dict = pkg_dict
+        if not package_dict:
             package_dict = toolkit.get_action('package_show')(
                 {'ignore_auth': True}, {'id': package_id}
             )
 
         doi = DOIQuery.read_package(package_id, create_if_none=True)
 
-        metadata_dict = build_metadata_dict(package_dict)
-        xml_dict = build_xml_dict(metadata_dict)
+        xml_dict = build_xml_dict(build_metadata_dict(package_dict))
+
         # publish doi if it's not already published to datacite
         if doi.published is None:
             self.set_metadata(doi.identifier, xml_dict)
             self.mint_doi(doi.identifier, package_dict['name'])
-        else:
-            # update doi if metadata has changed
-            same = self.check_for_update(doi.identifier, xml_dict)
-            if not same:
-                url = xml_dict.get('alternateIdentifiers', [])[0].get('alternateIdentifier')
-                # update the url if it has changed
-                self.client.doi_post(doi.identifier, url)
+        elif not self.check_for_update(doi.identifier, xml_dict):
+            # the metadata has changed, so update the url in case that changed too
+            url = xml_dict.get('alternateIdentifiers', [])[0].get('alternateIdentifier')
+            self.client.doi_post(doi.identifier, url)
 
-                # Not the same, so we want to update the metadata
-                self.set_metadata(doi.identifier, xml_dict)
+            # Not the same, so we want to update the metadata
+            self.set_metadata(doi.identifier, xml_dict)

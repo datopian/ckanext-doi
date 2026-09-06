@@ -5,6 +5,43 @@
 # Created by the Natural History Museum in London, UK
 
 
+def _split_full_name(full_name):
+    """
+    Split a full name into its family and given name parts.
+
+    Names are expected in the format "FamilyName, GivenName"; if there's no comma we
+    assume the name was formatted incorrectly and fall back to splitting on spaces,
+    treating the last word as the family name. If that doesn't work either then there
+    isn't much we can do.
+
+    :param full_name: the name to split
+    :return: a (family_name, given_name) tuple
+    """
+    family_name, comma, given_name = full_name.partition(',')
+    if comma:
+        return family_name.strip(), given_name.strip()
+
+    name_parts = full_name.split(' ')
+    return name_parts[-1].strip(), ' '.join(name_parts[0:-1]).strip()
+
+
+def _name_identifier(identifier):
+    """
+    Convert an identifier dict into its xml_dict "nameIdentifiers" representation.
+
+    :param identifier: a dict with "identifier", "scheme", and (optionally) "scheme_uri"
+    :return: a dict, or None if the identifier is missing required keys
+    """
+    if 'identifier' not in identifier or 'scheme' not in identifier:
+        return None
+    id_dict = {
+        'nameIdentifier': identifier['identifier'],
+        'nameIdentifierScheme': identifier['scheme'],
+    }
+    if 'scheme_uri' in identifier:
+        id_dict['schemeURI'] = identifier['scheme_uri']
+    return id_dict
+
 
 def create_contributor(
     full_name=None,
@@ -37,44 +74,37 @@ def create_contributor(
             'Creator name must be supplied, either as full_name="FamilyName, '
             'GivenName" or separately as family_name and given_name'
         )
+
     if full_name is None:
         full_name = f'{family_name}, {given_name}'
-    if (family_name is None or given_name is None) and not is_org:
-        # try to extract the family and given names from the full name
-        name_parts = full_name.split(',', 1)
-        if len(name_parts) > 1:
-            family_name, given_name = [x.strip() for x in name_parts]
-        else:
-            # assume it was formatted incorrectly and split by spaces instead
-            # if that doesn't work then there isn't much we can do
-            name_parts = full_name.split(' ')
-            family_name = name_parts[-1].strip()
-            given_name = ' '.join(name_parts[0:-1]).strip()
+    elif not is_org and (family_name is None or given_name is None):
+        # we have a full name but not both parts, so extract them from the full name
+        family_name, given_name = _split_full_name(full_name)
+
     contributor = {
         'name': full_name,
         'nameType': 'Organizational' if is_org else 'Personal',
     }
+
     if not is_org:
         contributor['familyName'] = family_name
         contributor['givenName'] = given_name
+
     if contributor_type is not None:
         contributor['contributorType'] = contributor_type
+
     if affiliations is not None:
-        contributor['affiliations'] = []
         if isinstance(affiliations, str):
             affiliations = [affiliations]
-        for affiliation in affiliations:
-            contributor['affiliations'].append({'affiliation': affiliation})
+        contributor['affiliations'] = [
+            {'affiliation': affiliation} for affiliation in affiliations
+        ]
+
     if identifiers:
-        contributor['nameIdentifiers'] = []
-        for _id in identifiers:
-            if 'identifier' not in _id or 'scheme' not in _id:
-                continue
-            id_dict = {
-                'nameIdentifier': _id['identifier'],
-                'nameIdentifierScheme': _id['scheme'],
-            }
-            if 'scheme_uri' in _id:
-                id_dict['schemeURI'] = _id['scheme_uri']
-            contributor['nameIdentifiers'].append(id_dict)
+        contributor['nameIdentifiers'] = [
+            id_dict
+            for id_dict in map(_name_identifier, identifiers)
+            if id_dict is not None
+        ]
+
     return contributor
